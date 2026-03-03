@@ -497,6 +497,8 @@ function saveContacts(){
   localStorage.setItem("beeItWapp",  CFG.wapp);
   localStorage.setItem("beeItEmail", CFG.email);
   localStorage.setItem("beeItNome",  CFG.nome);
+  if(API_URL) apiPost({action:"saveConfig",data:{wapp:CFG.wapp,email:CFG.email,nome:CFG.nome}});
+  showToast("Contatos salvos!");
 }
 
 function buildMsg(analista){
@@ -523,7 +525,38 @@ function mailLink(analista){
 function apiGet(p){if(!API_URL)return Promise.resolve(null);var url=API_URL+"?"+Object.keys(p).map(function(k){return k+"="+encodeURIComponent(p[k]);}).join("&");return fetch(url).then(function(r){return r.json();}).catch(function(){return null;});}
 function apiPost(b){if(!API_URL)return Promise.resolve(null);return fetch(API_URL,{method:"POST",body:JSON.stringify(b)}).then(function(r){return r.json();}).catch(function(){return null;});}
 function saveApiUrl(){var v=document.getElementById("apiUrl").value.trim();if(!v){alert("Cole a URL.");return;}API_URL=v;localStorage.setItem("beeItApiUrl",v);document.getElementById("cfgOk").style.display="block";showToast("URL salva! Carregando dados...");loadFromSheets();}
-function loadFromSheets(){if(!API_URL)return;apiGet({action:"getAll"}).then(function(res){if(!res||res.error)return;if(res.analistas&&res.analistas.length)D=res.analistas;if(res.modulos&&Object.keys(res.modulos).length)MODS=res.modulos;renderConsulta();if(document.getElementById("tabA").style.display!=="none")renderTabela();});}
+function normalizeAnalista(a){
+  // Normalizar av: TRUE/true/1/"true" -> "disponivel", resto -> "indisponivel"
+  var avVal = String(a.av||"").toLowerCase().trim();
+  a.av = (avVal==="true"||avVal==="disponivel"||avVal==="1"||avVal==="sim") ? "disponivel" : "indisponivel";
+  // Normalizar sp: mapear para chaves do sistema
+  var spMap = {
+    "desenvolvedor advpl":"AdvPL","advpl":"AdvPL","adv pl":"AdvPL",
+    "analista protheus":"Protheus","protheus":"Protheus",
+    "fluig":"Fluig",
+    "rm":"RM"
+  };
+  var spKey = String(a.sp||"").toLowerCase().trim();
+  a.sp = spMap[spKey] || a.sp;
+  return a;
+}
+function loadFromSheets(){
+  if(!API_URL)return;
+  apiGet({action:"getAll"}).then(function(res){
+    if(!res||res.error)return;
+    if(res.analistas&&res.analistas.length) D=res.analistas.map(normalizeAnalista);
+    if(res.modulos&&Object.keys(res.modulos).length) MODS=res.modulos;
+    renderConsulta();
+    if(document.getElementById("tabA").style.display!=="none") renderTabela();
+  });
+  apiGet({action:"getConfig"}).then(function(res){
+    if(!res||!res.config) return;
+    var c = res.config;
+    if(c.wapp)  { CFG.wapp=c.wapp;  localStorage.setItem("beeItWapp",c.wapp);  document.getElementById("cfgWapp") &&(document.getElementById("cfgWapp").value=c.wapp); }
+    if(c.email) { CFG.email=c.email; localStorage.setItem("beeItEmail",c.email); document.getElementById("cfgEmail")&&(document.getElementById("cfgEmail").value=c.email); }
+    if(c.nome)  { CFG.nome=c.nome;   localStorage.setItem("beeItNome",c.nome);   document.getElementById("cfgNome") &&(document.getElementById("cfgNome").value=c.nome); }
+  });
+}
 
 // ── PANELS ──
 function _showPanelInner(p){
