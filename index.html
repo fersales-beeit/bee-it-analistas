@@ -786,26 +786,46 @@ function gerarEmail(){
     '</td></tr></table></td></tr>' +
     '</table></td></tr></table></body></html>';
 
-  // Abrir preview em nova janela com botao de copiar
-  var win = window.open('', '_blank', 'width=700,height=700');
+  // Abrir preview com botao para abrir no Outlook Classic
+  var win = window.open('', '_blank', 'width=750,height=720');
   win.document.write(
     '<html><head><title>Email - Analistas Bee IT</title>' +
     '<style>body{margin:0;font-family:Arial,sans-serif;}' +
-    '.bar{background:#001726;padding:12px 20px;display:flex;align-items:center;gap:12px;}' +
-    '.bar button{background:#F58534;color:#fff;border:none;padding:8px 18px;font-size:13px;font-weight:bold;cursor:pointer;border-radius:4px;}' +
-    '.bar span{color:#fff;font-size:13px;}' +
-    'iframe{width:100%;height:calc(100vh - 50px);border:none;}' +
+    '.bar{background:#001726;padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}' +
+    '.bar button{background:#F58534;color:#fff;border:none;padding:9px 18px;font-size:13px;font-weight:bold;cursor:pointer;border-radius:4px;}' +
+    '.bar button:hover{background:#d4722a;}' +
+    '.bar span{color:#fff;font-size:13px;flex:1;}' +
+    'iframe{width:100%;height:calc(100vh - 54px);border:none;}' +
     '</style></head><body>' +
     '<div class="bar">' +
-    '<span>Preview do email</span>' +
-    '<button onclick="copyHTML()">&#128203; Copiar HTML</button>' +
-    '<button onclick="selectAll()">&#9745; Selecionar tudo</button>' +
+    '<span>&#9993; Preview do email</span>' +
+    '<button onclick="abrirOutlook()">&#128236; Abrir no Outlook</button>' +
+    '<button onclick="copiarConteudo()">&#128203; Copiar conteudo</button>' +
     '</div>' +
     '<iframe id="preview" srcdoc="'+html.replace(/"/g, '&quot;')+'"></iframe>' +
     '<textarea id="src" style="position:absolute;left:-9999px;">'+html+'</textarea>' +
     '<script>' +
-    'function copyHTML(){var t=document.getElementById("src");t.select();document.execCommand("copy");alert("HTML copiado!");}' +
-    'function selectAll(){var f=document.getElementById("preview");f.contentWindow.document.execCommand("selectAll");}<\/script>' +
+    'function abrirOutlook(){' +
+    '  var t=document.getElementById("src").value;' +
+    '  var blob=new Blob([t],{type:"text/html"});' +
+    '  var url=URL.createObjectURL(blob);' +
+    '  var a=document.createElement("a");' +
+    '  a.href="mailto:?subject=Analistas%20Bee%20IT%20%E2%80%93%20Dispon%C3%ADveis%20para%20aloca%C3%A7%C3%A3o&body=Cole%20o%20HTML%20aqui";' +
+    '  a.click();' +
+    '  setTimeout(function(){' +
+    '    document.getElementById("instrucao").style.display="block";' +
+    '  },500);' +
+    '}' +
+    'function copiarConteudo(){' +
+    '  var f=document.getElementById("preview");' +
+    '  f.contentWindow.document.execCommand("selectAll");' +
+    '  f.contentWindow.document.execCommand("copy");' +
+    '  alert("Conteudo copiado! Cole no corpo do email no Outlook.");' +
+    '}' +
+    '<\/script>' +
+    '<div id="instrucao" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#fff8f3;border-top:3px solid #F58534;padding:12px 20px;font-size:13px;color:#444;">' +
+    '&#128161; <strong>Outlook aberto!</strong> No email que abriu, clique no corpo e use <strong>Ctrl+V</strong> para colar o conteudo visual. Para isso, primeiro clique em <strong>Copiar conteudo</strong> acima.' +
+    '</div>' +
     '</body></html>'
   );
   win.document.close();
