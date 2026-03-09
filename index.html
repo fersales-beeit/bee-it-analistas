@@ -290,6 +290,11 @@ tr:hover td{background:rgba(0,57,90,.3);}
   <div class="stitle">Analistas Disponiveis <span class="cbadge" id="vc">0</span></div>
   <div class="section-line"></div>
   <div class="spgrid" id="spg"></div>
+  <div id="btnEmailWrap" style="display:none;justify-content:flex-end;margin-bottom:12px;">
+    <button onclick="gerarEmail()" style="background:#F58534;color:#fff;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">
+      &#9993; Gerar Email de Disponibilidade
+    </button>
+  </div>
   <div class="fbar">
     <div class="fg" style="max-width:400px">
       <div class="fl">Modulos</div>
@@ -451,6 +456,7 @@ function doLogin(){
     document.getElementById("loginPass").value="";
     _showPanelInner("a");
     showToast("Bem-vindo! Acesso autorizado.");
+    document.getElementById("btnEmailWrap").style.display="flex";
   }else{
     document.getElementById("loginErr").classList.add("show");
     var i=document.getElementById("loginPass");
@@ -534,11 +540,23 @@ function applyConfig(cfg){
   var fe=document.getElementById("cfgEmail"); if(fe) fe.value=CFG.email;
   var fn=document.getElementById("cfgNome");  if(fn) fn.value=CFG.nome;
 }
+function normalizeAnalista(a){
+  var avVal = String(a.av||'').toLowerCase().trim();
+  a.av = (avVal==='true'||avVal==='disponivel'||avVal==='1'||avVal==='sim') ? 'disponivel' : 'indisponivel';
+  var spMap = {
+    'desenvolvedor advpl':'AdvPL','advpl':'AdvPL',
+    'analista protheus':'Protheus','protheus':'Protheus',
+    'fluig':'Fluig','rm':'RM'
+  };
+  var spKey = String(a.sp||'').toLowerCase().trim();
+  a.sp = spMap[spKey] || a.sp;
+  return a;
+}
 function loadFromSheets(){
   if(!API_URL)return;
   apiGet({action:"getAll"}).then(function(res){
     if(!res||res.error)return;
-    if(res.analistas&&res.analistas.length) D=res.analistas;
+    if(res.analistas&&res.analistas.length) D=res.analistas.map(normalizeAnalista);
     if(res.modulos&&Object.keys(res.modulos).length) MODS=res.modulos;
     if(res.config) applyConfig(res.config);
     renderConsulta();
@@ -696,7 +714,106 @@ function cancelEditMod(sp){openSec[sp]=true;renderModAcc();setTimeout(function()
 function renderModSum(){document.getElementById("modSum").innerHTML=SPS.map(function(sp){var c=MODS[sp.k]?MODS[sp.k].length:0;return '<div class="sum-row"><span style="font-size:13px;color:var(--tx2)">'+sp.l+'</span><span class="sum-num">'+c+'</span></div>';}).join("");}
 
 // ── INIT ──
-document.addEventListener("DOMContentLoaded",function(){renderConsulta();renderChips();if(API_URL){loadFromSheets();}else{showToast("Configure a URL do Apps Script no painel Admin.",true);}});
+
+// ── GERAR EMAIL ──
+function gerarEmail(){
+  var disponiveis = D.filter(function(a){ return a.av === 'disponivel'; });
+  if(!disponiveis.length){ showToast('Nenhum analista disponivel!', true); return; }
+
+  // Agrupar por especialidade mantendo ordem SPS
+  var grupos = {};
+  SPS.forEach(function(s){ grupos[s.k] = []; });
+  disponiveis.forEach(function(a){
+    if(grupos[a.sp]) grupos[a.sp].push(a);
+    else { grupos[a.sp] = [a]; }
+  });
+
+  var labels = {
+    'Protheus': { titulo: 'Protheus', sub: 'Funcional' },
+    'AdvPL':    { titulo: 'Protheus', sub: 'Desenvolvimento ADVPL / Funcional' },
+    'Fluig':    { titulo: 'Fluig',    sub: '' },
+    'RM':       { titulo: 'RM',       sub: '' }
+  };
+
+  var secoes = '';
+  Object.keys(grupos).forEach(function(sp){
+    var lista = grupos[sp];
+    if(!lista.length) return;
+    var lbl = labels[sp] || { titulo: sp, sub: '' };
+    var linhas = lista.map(function(a, i){
+      var bg = i%2===0 ? '#f9f9f9' : '#ffffff';
+      var modsStr = (a.mods||[]).join(', ');
+      return '<tr style="background-color:'+bg+';">' +
+        '<td style="padding:11px 14px;width:190px;vertical-align:top;border-bottom:1px solid #eeeeee;">' +
+        '<span style="font-size:13px;font-weight:bold;color:#222222;">'+a.name+'</span></td>' +
+        '<td style="padding:11px 14px;vertical-align:top;border-bottom:1px solid #eeeeee;">' +
+        '<span style="font-size:13px;color:#555555;">'+modsStr+'</span></td></tr>';
+    }).join('');
+
+    secoes += '<tr><td style="padding:24px 36px 0 36px;">' +
+      '<table cellpadding="0" cellspacing="0" border="0"><tr>' +
+      '<td style="background-color:#FF6B00;padding:4px 12px;">' +
+      '<span style="font-size:11px;font-weight:bold;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">'+lbl.titulo+'</span></td>' +
+      (lbl.sub ? '<td style="padding-left:8px;"><span style="font-size:12px;color:#999999;">'+lbl.sub+'</span></td>' : '') +
+      '</tr></table></td></tr>' +
+      '<tr><td style="padding:8px 36px 0 36px;">' +
+      '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid #FF6B00;">' +
+      linhas + '</table></td></tr>';
+  });
+
+  var html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">' +
+    '<html xmlns="http://www.w3.org/1999/xhtml"><head>' +
+    '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />' +
+    '<title>Analistas Bee IT</title></head>' +
+    '<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,sans-serif;">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">' +
+    '<tr><td align="center" style="padding:32px 16px;">' +
+    '<table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;">' +
+    '<tr><td style="background-color:#1a3a5c;padding:24px 36px;">' +
+    '<p style="margin:0 0 4px 0;font-size:11px;color:rgba(255,255,255,0.65);letter-spacing:2px;text-transform:uppercase;">Bee IT Partner</p>' +
+    '<p style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;">Analistas disponíveis para alocação</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:28px 36px 20px 36px;">' +
+    '<p style="margin:0;font-size:14px;color:#444444;line-height:1.7;">Olá,</p>' +
+    '<p style="margin:12px 0 0 0;font-size:14px;color:#444444;line-height:1.7;">Segue abaixo a relação de analistas disponíveis e suas principais especialidades.<br/>Se você tiver alguma demanda em aberto, pode me mandar o módulo/tema principal que eu indico os melhores perfis e, se fizer sentido, já encaminho os currículos para avaliação.</p>' +
+    '</td></tr>' +
+    secoes +
+    '<tr><td style="padding:28px 36px 36px 36px;">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fff8f3;border-left:4px solid #FF6B00;">' +
+    '<tr><td style="padding:16px 18px;">' +
+    '<p style="margin:0;font-size:13px;color:#444444;line-height:1.7;">Tem uma demanda em aberto? <strong style="color:#FF6B00;">Me mande o módulo ou tema principal</strong> e eu indico os melhores perfis — se fizer sentido, já encaminho os currículos.</p>' +
+    '</td></tr></table></td></tr>' +
+    '</table></td></tr></table></body></html>';
+
+  // Abrir preview em nova janela com botao de copiar
+  var win = window.open('', '_blank', 'width=700,height=700');
+  win.document.write(
+    '<html><head><title>Email - Analistas Bee IT</title>' +
+    '<style>body{margin:0;font-family:Arial,sans-serif;}' +
+    '.bar{background:#001726;padding:12px 20px;display:flex;align-items:center;gap:12px;}' +
+    '.bar button{background:#F58534;color:#fff;border:none;padding:8px 18px;font-size:13px;font-weight:bold;cursor:pointer;border-radius:4px;}' +
+    '.bar span{color:#fff;font-size:13px;}' +
+    'iframe{width:100%;height:calc(100vh - 50px);border:none;}' +
+    '</style></head><body>' +
+    '<div class="bar">' +
+    '<span>Preview do email</span>' +
+    '<button onclick="copyHTML()">&#128203; Copiar HTML</button>' +
+    '<button onclick="selectAll()">&#9745; Selecionar tudo</button>' +
+    '</div>' +
+    '<iframe id="preview" srcdoc="'+html.replace(/"/g, '&quot;')+'"></iframe>' +
+    '<textarea id="src" style="position:absolute;left:-9999px;">'+html+'</textarea>' +
+    '<script>' +
+    'function copyHTML(){var t=document.getElementById("src");t.select();document.execCommand("copy");alert("HTML copiado!");}' +
+    'function selectAll(){var f=document.getElementById("preview");f.contentWindow.document.execCommand("selectAll");}<\/script>' +
+    '</body></html>'
+  );
+  win.document.close();
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+  if(isAuthed()) document.getElementById("btnEmailWrap").style.display="flex";
+  renderConsulta();renderChips();if(API_URL){loadFromSheets();}else{showToast("Configure a URL do Apps Script no painel Admin.",true);}});
 </script>
 </body>
 </html>
