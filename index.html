@@ -760,7 +760,7 @@ function gerarWhatsApp(){
     linhas.push(lbl);
     lista.forEach(function(a){
         var mods = (a.mods||[]).join(', ');
-      linhas.push('• ' + a.name + (mods ? ' – ' + mods : ''));
+      linhas.push('• *' + a.name + '*' + (mods ? ' – ' + mods : ''));
     });
     linhas.push('');
   });
