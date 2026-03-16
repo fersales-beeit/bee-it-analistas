@@ -303,7 +303,10 @@ tr:hover td{background:rgba(0,57,90,.3);}
   <div class="stitle">Analistas Disponiveis <span class="cbadge" id="vc">0</span></div>
   <div class="section-line"></div>
   <div class="spgrid" id="spg"></div>
-  <div id="btnEmailWrap" style="display:none;justify-content:flex-end;margin-bottom:12px;">
+  <div id="btnEmailWrap" style="display:none;justify-content:flex-end;gap:10px;margin-bottom:12px;">
+    <button onclick="gerarWhatsApp()" style="background:#25D366;color:#fff;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">
+      &#128242; Gerar Mensagem WhatsApp
+    </button>
     <button onclick="gerarEmail()" style="background:#F58534;color:#fff;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">
       &#9993; Gerar Email de Disponibilidade
     </button>
@@ -729,6 +732,68 @@ function renderModSum(){document.getElementById("modSum").innerHTML=SPS.map(func
 // ── INIT ──
 
 // ── GERAR EMAIL ──
+function gerarWhatsApp(){
+  var disponiveis = D.filter(function(a){ return a.av === 'disponivel'; });
+  if(!disponiveis.length){ showToast('Nenhum analista disponivel!', true); return; }
+
+  var grupos = {};
+  SPS.forEach(function(s){ grupos[s.k] = []; });
+  disponiveis.forEach(function(a){
+    if(grupos[a.sp]) grupos[a.sp].push(a);
+    else { grupos[a.sp] = [a]; }
+  });
+
+  var labels = {
+    'Protheus': '🔷 *PROTHEUS – Funcional*',
+    'AdvPL':    '🔶 *PROTHEUS – AdvPL / Desenvolvimento*',
+    'Fluig':    '🟣 *FLUIG*',
+    'RM':       '🟢 *RM*',
+    'BI':       '📊 *BI / Analytics*'
+  };
+
+  var linhas = ['Olá! 👋', '', 'Seguem nossos consultores *disponíveis para alocação*:', ''];
+
+  Object.keys(grupos).forEach(function(sp){
+    var lista = grupos[sp];
+    if(!lista.length) return;
+    var lbl = labels[sp] || ('*' + sp + '*');
+    linhas.push(lbl);
+    lista.forEach(function(a){
+        var mods = (a.mods||[]).join(', ');
+      linhas.push('• ' + a.name + (mods ? ' – ' + mods : ''));
+    });
+    linhas.push('');
+  });
+
+  linhas.push('Tem alguma demanda em aberto? Me manda o módulo ou tema principal e indico o melhor perfil! 🐝');
+
+  var texto = linhas.join('\n');
+
+  // Modal
+  var modal = document.getElementById('wppModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'wppModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:10px;padding:28px;max-width:560px;width:90%;max-height:85vh;display:flex;flex-direction:column;gap:14px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+          '<span style="font-weight:bold;font-size:15px;color:#001726;">📱 Mensagem para WhatsApp</span>' +
+          '<button onclick="document.getElementById(\'wppModal\').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;">✕</button>' +
+        '</div>' +
+        '<textarea id="wppTexto" style="width:100%;height:320px;font-family:monospace;font-size:12px;border:1px solid #ddd;border-radius:6px;padding:10px;resize:vertical;box-sizing:border-box;color:#222;line-height:1.6;"></textarea>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+          '<button onclick="navigator.clipboard.writeText(document.getElementById(\'wppTexto\').value).then(function(){showToast(\'Copiado!\')});document.getElementById(\'wppModal\').remove();" ' +
+            'style="background:#25D366;color:#fff;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:bold;cursor:pointer;">' +
+            '📋 Copiar e Fechar' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('wppTexto').value = texto;
+}
+
 function gerarEmail(){
   var disponiveis = D.filter(function(a){ return a.av === 'disponivel'; });
   if(!disponiveis.length){ showToast('Nenhum analista disponivel!', true); return; }
